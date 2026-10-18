@@ -439,6 +439,10 @@ function setupTrofeu(trophy) {
 function setupGaleria() {
   const stage = $('.galeria__stage');
   const floor = $('.galeria__floor');
+  // O chão é um padrão periódico: basta deslocá-lo dentro de uma célula da grade (via transform)
+  // para dar a ilusão de avanço infinito, sem repintar a camada a cada frame.
+  const FLOOR_CELL = 180; // igual ao background-size do chão no CSS
+  const FLOOR_BASE = 'translateY(32vh) translateZ(400px) rotateX(-90deg)';
   const items = $$('.g-item').map((el) => ({ el, side: Number(el.dataset.side), depth: Number(el.dataset.depth) }));
   const camera = { t: 0 }; // 0 → 1 ao longo do corredor; a distância real vem de cfg.end
   let cfg;
@@ -471,7 +475,7 @@ function setupGaleria() {
       it.el.style.visibility = opacity < 0.01 ? 'hidden' : 'visible';
       it.el.style.transform = `translate3d(calc(-50% + ${it.side * spread * vw}px), -50%, ${z.toFixed(1)}px) rotateY(${-it.side * turn}deg)`;
     }
-    floor.style.backgroundPosition = `50% ${(-travelled).toFixed(1)}px`;
+    floor.style.transform = `${FLOOR_BASE} translateY(${(-(travelled % FLOOR_CELL)).toFixed(1)}px)`;
   };
 
   configure();
@@ -506,7 +510,18 @@ function setupGaleria() {
     .fromTo('.finale__stamp', { clipPath: 'inset(0% 100% 0% 0%)' }, { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.5, ease: 'power2.inOut' }, 8.4)
     .from('.finale__note', { y: 20, autoAlpha: 0, duration: 0.5, ease: 'power2.out' }, 8.75)
     .from('.finale__extra', { y: 24, autoAlpha: 0, duration: 0.6, ease: 'power2.out' }, 9.05)
-    .to({}, { duration: 0.35 }, 9.65);
+    // Raios e anel do selo giram com o scroll (e não em loop infinito): parado, a GPU descansa.
+    .fromTo('.finale__rays > span', { rotation: 0 }, { rotation: 45, duration: 2.9 }, 7.1)
+    .fromTo('.finale__seal-ring', { rotation: -90 }, { rotation: 90, duration: 1.9 }, 8.1);
+
+  // Com a galeria na tela, o grão de filme fica parado: a animação dele obriga a GPU
+  // a recompor a cena 3D inteira a cada frame, mesmo com a página parada.
+  ScrollTrigger.create({
+    trigger: '#galeria',
+    start: 'top bottom',
+    end: 'bottom top',
+    toggleClass: { targets: root, className: 'is-galeria' },
+  });
 
   // Confete quando o "Lutou pelo Brasil" aparece (segue a suavização do scrub).
   let celebrated = false;

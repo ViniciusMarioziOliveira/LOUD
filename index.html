@@ -341,6 +341,7 @@
     <section class="galeria" id="galeria" aria-labelledby="galeria-title">
       <div class="galeria__stage">
         <div class="galeria__floor" aria-hidden="true"></div>
+        <div class="galeria__fog" aria-hidden="true"></div>
 
         <header class="galeria__hud">
           <p class="eyebrow">Capítulo 04 · A galeria</p>
@@ -367,13 +368,18 @@
                 <div class="finale__cover" aria-hidden="true"><span class="finale__q">?</span><span class="finale__cover-label">MVP 2026</span></div>
                 <span class="finale__shine" aria-hidden="true"></span>
               </div>
-              <svg class="finale__seal" viewBox="0 0 120 120" aria-hidden="true">
-                <defs><path id="seal-ring" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>
-                <circle class="finale__seal-disc" cx="60" cy="60" r="57"/>
-                <circle class="finale__seal-inner" cx="60" cy="60" r="35"/>
-                <g class="finale__seal-ring"><text><textPath href="#seal-ring" textLength="282" lengthAdjust="spacing">MVP · VCT CHAMPIONS · SHANGHAI 2026 ·</textPath></text></g>
-                <text class="finale__seal-mvp" x="60" y="69" text-anchor="middle">MVP</text>
-              </svg>
+              <div class="finale__seal" aria-hidden="true">
+                <svg class="finale__seal-base" viewBox="0 0 120 120">
+                  <circle class="finale__seal-disc" cx="60" cy="60" r="57"/>
+                  <circle class="finale__seal-inner" cx="60" cy="60" r="35"/>
+                  <text class="finale__seal-mvp" x="60" y="69" text-anchor="middle">MVP</text>
+                </svg>
+                <!-- o anel gira como elemento próprio (animação na GPU, sem repintar o SVG) -->
+                <svg class="finale__seal-ring" viewBox="0 0 120 120">
+                  <defs><path id="seal-ring" d="M60,60 m-45,0 a45,45 0 1,1 90,0 a45,45 0 1,1 -90,0"/></defs>
+                  <text><textPath href="#seal-ring" textLength="282" lengthAdjust="spacing">MVP · VCT CHAMPIONS · SHANGHAI 2026 ·</textPath></text>
+                </svg>
+              </div>
             </figure>
 
             <div class="finale__text">

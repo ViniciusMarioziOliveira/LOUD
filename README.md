@@ -59,6 +59,7 @@ O modelo 3D precisa ser servido por HTTP. Se abrir o `index.html` com duplo cliq
 ├── img/
 │   ├── *.webp                   # fotos e pôsteres originais
 │   ├── crop/                    # recortes usados na página
+│   ├── raios.webp               # textura dos raios atrás do MVP
 │   ├── trofeu_3d_otimizado.glb  # modelo 3D usado no site (texturas em JPEG)
 │   └── trofeu_3d.glb            # modelo original, usado como reserva
 └── docs/trofeu-3d.gif           # GIF deste README
