@@ -14,6 +14,8 @@ Landing page imersiva, feita por fã, sobre a virada da **LOUD** no **VCT Champi
 4. **A taça:** o troféu em 3D gira com o scroll. Primeiro aparecem os campeões de 2026 e, "rebobinando" o tempo, o legado de 2022.
 5. **A galeria:** um corredor 3D de pôsteres que termina na revelação do MVP, erde, chileno que lutou pelo Brasil.
 6. **Epílogo:** LOUD, bicampeã do mundo.
+7. **Pós-jogo:** os recordes. Os 5 campeões mais jovens da história do Champions (todos da LOUD), os recordes de erde, lukxo e tkzin e a escalada do tkzin no ranking de aces, num gráfico que muda com o scroll.
+8. **O momento:** o vídeo da LOUD erguendo a taça. O "O" de L▷UD vira uma janela em forma de play que cresce com o scroll até o vídeo tomar a tela, com "É BI!". Com o som ligado, um brilho verde reage aos picos da torcida.
 
 ## Tecnologias
 
@@ -57,9 +59,11 @@ O modelo 3D precisa ser servido por HTTP. Se abrir o `index.html` com duplo cliq
 │   ├── main.js                  # scroll, preloader e animações das seções
 │   └── trophy.js                # cena 3D do troféu (Three.js)
 ├── img/
-│   ├── *.webp                   # fotos e pôsteres originais
+│   ├── *.webp                   # fotos, pôsteres e prints das fontes de dados
 │   ├── crop/                    # recortes usados na página
 │   ├── raios.webp               # textura dos raios atrás do MVP
+│   ├── video_trofeu_web.mp4     # vídeo da taça (otimizado para começar a tocar antes de baixar inteiro)
+│   ├── video_capa.webp          # capa do vídeo (primeiro quadro)
 │   ├── trofeu_3d_otimizado.glb  # modelo 3D usado no site (texturas em JPEG)
 │   └── trofeu_3d.glb            # modelo original, usado como reserva
 └── docs/trofeu-3d.gif           # GIF deste README
@@ -68,7 +72,8 @@ O modelo 3D precisa ser servido por HTTP. Se abrir o `index.html` com duplo cliq
 ## Créditos
 
 - **Modelo 3D do troféu:** ["Trophée VCT Champions Valorant"](https://sketchfab.com/3d-models/trophee-vct-champions-valorant-4cfc0dfcdbe84d458a9bad510aed50eb), de [redmattc](https://sketchfab.com/redmattc), sob licença [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Alterações: texturas recomprimidas para a web e base escurecida no código.
-- **Fotos e pôsteres:** material de divulgação (LOUD e Riot Games / VCT). Os direitos pertencem aos respectivos autores.
+- **Fotos, pôsteres e vídeo:** material de divulgação (LOUD e Riot Games / VCT). Os direitos pertencem aos respectivos autores.
+- **Dados e recordes:** publicações de statsmeister Valorant e Overtime (@OvertimeVCT) no X. O índice "aces por mapa" foi calculado a partir desses números.
 - **Fontes:** [Anton](https://fonts.google.com/specimen/Anton), [Barlow](https://fonts.google.com/specimen/Barlow), [Barlow Condensed](https://fonts.google.com/specimen/Barlow+Condensed) e [Grenze Gotisch](https://fonts.google.com/specimen/Grenze+Gotisch), via Google Fonts (SIL Open Font License).
 - **Bibliotecas:** [Three.js](https://github.com/mrdoob/three.js) (MIT), [GSAP](https://gsap.com/) (licença gratuita da GSAP) e [Lenis](https://github.com/darkroomengineering/lenis) (MIT).
 

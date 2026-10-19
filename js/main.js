@@ -52,6 +52,8 @@ function boot() {
   setupTrofeu(trophy);
   setupGaleria();
   setupOutro();
+  setupRecordes();
+  setupReel();
   setupNav();
 
   Promise.all([document.fonts?.ready, decodeImage($('.hero__media img'))])
@@ -609,6 +611,577 @@ function setupOutro() {
     ease: 'none',
     scrollTrigger: { trigger: '.outro', start: 'top bottom', end: 'bottom top', scrub: true },
   });
+}
+
+/* ---------------------------------------------------------------- pós-jogo · recordes */
+
+function setupRecordes() {
+  gsap.from('.rec-intro__title .line__in', {
+    yPercent: 115,
+    duration: 1.2,
+    stagger: 0.1,
+    ease: 'expo.out',
+    scrollTrigger: { trigger: '.rec-intro', start: 'top 75%' },
+  });
+
+  // 1 · os campeões mais jovens: contagem "5 de 5" e linhas entrando em sequência
+  const young = { trigger: '.young__list', start: 'top 80%' };
+  gsap.from('.young__num[data-count]', {
+    textContent: 0,
+    snap: { textContent: 1 },
+    duration: 1.4,
+    ease: 'power2.out',
+    scrollTrigger: { trigger: '.young', start: 'top 72%' },
+  });
+  // entrada na vertical: um deslocamento lateral alargaria a página no celular antes de animar
+  gsap.from('.young__row', { y: 26, autoAlpha: 0, duration: 0.9, stagger: 0.08, ease: 'power3.out', scrollTrigger: young });
+  gsap.from('.young__twins', { scale: 0, autoAlpha: 0, duration: 0.5, delay: 0.7, ease: 'back.out(2)', scrollTrigger: young });
+
+  // 2 · recordes individuais
+  gsap.from('.feats__title', { y: 40, autoAlpha: 0, duration: 1, ease: 'power3.out', scrollTrigger: { trigger: '.feats', start: 'top 78%' } });
+  gsap.from('.feat', { y: 60, autoAlpha: 0, duration: 1, stagger: 0.12, ease: 'power3.out', scrollTrigger: { trigger: '.feats__grid', start: 'top 82%' } });
+
+  setupAces();
+}
+
+// Gráfico de barras guiado pelo scroll: estreia → atualização → aces por mapa.
+// Tudo é desenhado com transform/opacity (composição na GPU, sem repintar a cada frame).
+function setupAces() {
+  // Jogadores com mais aces na história do Champions (Overtime/@OvertimeVCT).
+  // debut = [aces, partidas] no dia da estreia do tkzin (29/09/2026) · update = [aces, mapas] na atualização.
+  const ACES = [
+    { name: 'ZmjjKK', flag: 'cn', debut: [5, 18], update: [5, 51] },
+    { name: 'something', flag: 'ru', debut: [4, 16], update: [5, 50] },
+    { name: 'tkzin', flag: 'br', debut: [3, 1], update: [4, 16], hero: true },
+    { name: 'Jamppi', flag: 'fi', debut: [3, 12], update: [4, 44] },
+    { name: 'keznit', flag: 'cl', debut: [3, 13] },
+    { name: 'zekken', flag: 'us', debut: [3, 14] },
+    { name: 'Derke', flag: 'fi', debut: [3, 22], update: [4, 71] },
+  ];
+  const num = (n, digits) => n.toLocaleString('pt-BR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const mapsPerAce = (p) => {
+    const r = p.update[1] / p.update[0];
+    return num(r, Number.isInteger(r) ? 0 : 1);
+  };
+
+  const rowsEl = $('.aces__rows');
+  const tip = $('.aces__tip');
+  const steps = $$('.aces__step');
+  const metricEl = $('.aces__metric');
+  const subEl = $('.aces__sub');
+  const HEADS = [
+    ['Aces na história do Champions', 'no dia da estreia do tkzin · 29/09/2026'],
+    ['Aces na história do Champions', 'na atualização'],
+    ['Aces por mapa', 'aces ÷ mapas jogados'],
+  ];
+
+  const withUpdate = ACES.filter((p) => p.update);
+  const rate = (p) => p.update[0] / p.update[1];
+  const makeState = (list, value, label, sub) => {
+    const max = Math.max(...list.map(value));
+    return new Map(list.map((p, i) => [p.name, { rank: i, norm: value(p) / max, label: label(p), sub: sub(p) }]));
+  };
+  const STATES = [
+    makeState(ACES, (p) => p.debut[0], (p) => String(p.debut[0]), (p) => plural(p.debut[1], 'partida', 'partidas')),
+    makeState(
+      [...withUpdate].sort((a, b) => b.update[0] - a.update[0] || a.update[1] - b.update[1]),
+      (p) => p.update[0], (p) => String(p.update[0]), (p) => plural(p.update[1], 'mapa', 'mapas'),
+    ),
+    makeState(
+      [...withUpdate].sort((a, b) => rate(b) - rate(a)),
+      rate, (p) => num(rate(p), 2), (p) => `1 a cada ${mapsPerAce(p)} mapas`,
+    ),
+  ];
+
+  const rows = ACES.map((p) => {
+    const el = document.createElement('div');
+    el.className = p.hero ? 'ace-row is-hero' : 'ace-row';
+    el.innerHTML = '<span class="ace-row__rank"></span>'
+      + `<span class="ace-row__who"><span class="ace-row__name"><svg class="flag" aria-hidden="true"><use href="#flag-${p.flag}"/></svg></span><span class="ace-row__sub"></span></span>`
+      + '<span class="ace-row__track"><i class="ace-row__bar"></i><span class="ace-row__val"></span></span>';
+    $('.ace-row__name', el).append(p.name);
+    rowsEl.append(el);
+    return {
+      p, el, y: 0, cache: {},
+      rank: $('.ace-row__rank', el), sub: $('.ace-row__sub', el),
+      bar: $('.ace-row__bar', el), val: $('.ace-row__val', el), track: $('.ace-row__track', el),
+    };
+  });
+
+  const head = { cache: {} };
+  const setText = (owner, key, el, value) => {
+    if (owner.cache[key] === value) return;
+    owner.cache[key] = value;
+    el.textContent = value;
+  };
+  const smooth = (x) => x * x * (3 - 2 * x);
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const clamp01 = gsap.utils.clamp(0, 1);
+  let rowH = 50;
+  let barW = 0;
+  let t = 0;
+  let shown = 0; // etapa cujos números estão na tela (troca junto com os rótulos)
+  let hovered = null;
+
+  function render() {
+    const seg = Math.min(1, Math.floor(t));
+    const f = clamp01(t - seg);
+    // Duas fases: primeiro as barras mudam de tamanho, depois o ranking reordena.
+    const fv = smooth(clamp01(f / 0.6));
+    const fy = smooth(clamp01((f - 0.4) / 0.6));
+    const A = STATES[seg];
+    const B = STATES[seg + 1];
+    for (const r of rows) {
+      const a = A.get(r.p.name);
+      const b = B.get(r.p.name);
+      if (!a && !b) {
+        // fora do ranking nas duas etapas (keznit e zekken depois da atualização)
+        if (!r.cache.out) {
+          r.cache.out = true;
+          r.el.style.opacity = '0';
+          r.el.style.visibility = 'hidden';
+        }
+        continue;
+      }
+      r.cache.out = false;
+      // quem sai do ranking some junto com a barra e desce para fora do gráfico
+      r.y = lerp(a ? a.rank : 7.4, b ? b.rank : 7.4, fy) * rowH;
+      const opacity = lerp(a ? 1 : 0, b ? 1 : 0, fv);
+      const v = lerp(a ? a.norm : 0, b ? b.norm : 0, fv);
+      r.el.style.transform = `translate3d(0, ${r.y.toFixed(1)}px, 0)`;
+      r.el.style.opacity = opacity.toFixed(3);
+      r.el.style.visibility = opacity < 0.01 ? 'hidden' : 'visible';
+      r.bar.style.transform = `scaleX(${Math.max(v, 0.0001).toFixed(4)})`;
+      r.val.style.transform = `translate3d(${(v * barW).toFixed(1)}px, -50%, 0)`;
+      // o número acompanha a barra; a posição no ranking acompanha o movimento da linha
+      const byValue = fv < 0.5 ? a || b : b || a;
+      const byRank = fy < 0.5 ? a || b : b || a;
+      setText(r, 'rank', r.rank, String(byRank.rank + 1));
+      setText(r, 'val', r.val, byValue.label);
+      setText(r, 'sub', r.sub, byValue.sub);
+    }
+    const now = seg + (fv >= 0.5 ? 1 : 0);
+    if (now !== shown) {
+      shown = now;
+      if (hovered) fillTip(hovered.p);
+    }
+    const [metric, sub] = HEADS[shown];
+    setText(head, 'metric', metricEl, metric);
+    setText(head, 'sub', subEl, sub);
+    steps.forEach((step, i) => {
+      const d = t - i;
+      const o = gsap.utils.clamp(0, 1, 1 - Math.abs(d) * 2.2);
+      step.style.opacity = o.toFixed(3);
+      step.style.visibility = o < 0.01 ? 'hidden' : 'visible';
+      step.style.transform = `translate3d(0, ${(-d * 28).toFixed(1)}px, 0)`;
+    });
+    if (hovered) placeTip(hovered);
+  }
+
+  function measure() {
+    const css = getComputedStyle(rowsEl);
+    rowH = parseFloat(css.getPropertyValue('--ar-h')) || 50;
+    barW = rows[0].track.clientWidth - (parseFloat(css.getPropertyValue('--lab')) || 0);
+    render();
+  }
+
+  // Tooltip: o valor da etapa visível vem primeiro; as outras etapas completam a leitura.
+  const line = (text) => {
+    const s = document.createElement('span');
+    s.textContent = text;
+    return s;
+  };
+  function fillTip(p) {
+    const debut = `${p.debut[0]} aces em ${plural(p.debut[1], 'partida', 'partidas')}`;
+    const update = p.update && `${p.update[0]} aces em ${p.update[1]} mapas`;
+    let lead;
+    let extra;
+    if (shown === 0) {
+      lead = debut;
+      extra = [update ? `Atualização: ${update}` : 'Fora do top 5 na atualização'];
+    } else if (shown === 1) {
+      lead = update;
+      extra = [`Em 29/09/2026: ${debut}`];
+    } else {
+      lead = `${num(p.update[0] / p.update[1], 2)} ace por mapa`;
+      extra = [`1 ace a cada ${mapsPerAce(p)} mapas`, update];
+    }
+    const value = document.createElement('strong');
+    value.textContent = lead;
+    tip.replaceChildren(value, line(p.name), ...extra.map(line));
+  }
+  function placeTip(r) {
+    const above = rowsEl.offsetTop + r.y - tip.offsetHeight - 6;
+    const y = above >= 0 ? above : rowsEl.offsetTop + r.y + rowH + 6;
+    tip.style.transform = `translate3d(150px, ${y.toFixed(1)}px, 0)`;
+  }
+  for (const r of rows) {
+    r.el.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      hovered = r;
+      fillTip(r.p);
+      placeTip(r);
+      tip.classList.add('is-on');
+    });
+    r.el.addEventListener('pointerleave', () => {
+      hovered = null;
+      tip.classList.remove('is-on');
+    });
+  }
+
+  const proxy = { t: 0 };
+  const tl = gsap.timeline({
+    defaults: { ease: 'none' },
+    scrollTrigger: {
+      trigger: '.aces__pin',
+      start: 'top top',
+      end: '+=240%',
+      pin: true,
+      scrub: 0.8,
+      anticipatePin: 1,
+    },
+  });
+  // pausa · estreia → atualização · pausa · → aces por mapa · pausa
+  tl.to(proxy, { t: 1, duration: 1 }, 0.5)
+    .to(proxy, { t: 2, duration: 1 }, 2)
+    .to({}, { duration: 0.6 }, 3);
+  tl.eventCallback('onUpdate', () => {
+    t = proxy.t;
+    render();
+  });
+
+  ScrollTrigger.addEventListener('refresh', measure);
+  measure();
+}
+
+/* ---------------------------------------------------------------- final · o momento (vídeo) */
+
+function setupReel() {
+  const section = $('#momento');
+  const pin = $('.reel__pin');
+  const media = $('.reel__media');
+  const video = $('.reel__video');
+  const slot = $('.reel__slot');
+  const mark = $('.reel__mark');
+  const letterL = $('.reel__l');
+  const lettersR = $$('.reel__u, .reel__d');
+  const soundBtn = $('.reel__sound');
+  const soundLabel = $('.reel__btn-label', soundBtn);
+  const toggleBtn = $('.reel__toggle');
+  const pulse = $('.reel__pulse');
+  const progress = $('.reel__progress span');
+  // Autoplay só quando o visitante não pediu menos movimento nem economia de dados.
+  const autoplay = !reduceMotion && navigator.connection?.saveData !== true;
+
+  video.removeAttribute('controls');
+  slot.disabled = false;
+  slot.removeAttribute('aria-hidden');
+  slot.removeAttribute('tabindex');
+
+  /* ---- geometria: o triângulo do "O" (T0) cresce até cobrir a tela (T1) ---- */
+  const MARK = [[5.5, 7.5], [90.5, 50], [5.5, 92.5]]; // mesmos pontos do <polygon> do símbolo
+  const FOCUS = [0.5, 0.34]; // centro da taça no início do vídeo (fração do quadro)
+  const CUP = 0.17; // altura da taça, em fração da altura do quadro
+  let T0 = null;
+  let T1 = null;
+  let cam = null;
+  const grow = { g: 0 };
+
+  function measure() {
+    const p = pin.getBoundingClientRect();
+    const r = mark.getBoundingClientRect();
+    T0 = MARK.flatMap(([x, y]) => [r.left - p.left + (x / 100) * r.width, r.top - p.top + (y / 100) * r.height]);
+    // triângulo semelhante (largura = altura) que contém a tela inteira
+    const m = p.width * 0.04;
+    const half = ((p.width + m + p.height) / 2) * 1.04;
+    T1 = [-m, p.height / 2 - half, -m + 2 * half, p.height / 2, -m, p.height / 2 + half];
+
+    // "Câmera": no início, a taça (FOCUS) fica no centro do triângulo, do tamanho do círculo
+    // inscrito; conforme a janela abre, a câmera recua até o enquadramento normal.
+    const W = p.width;
+    const H = p.height;
+    const vw = video.videoWidth || 854;
+    const vh = video.videoHeight || 480;
+    const s = Math.max(W / vw, H / vh); // object-fit: cover
+    const fx = (W - vw * s) / 2 + FOCUS[0] * vw * s;
+    const fy = (H - vh * s) / 2 + FOCUS[1] * vh * s;
+    const [ax, ay, bx, by, qx, qy] = T0;
+    const la = Math.hypot(bx - qx, by - qy);
+    const lb = Math.hypot(qx - ax, qy - ay);
+    const lc = Math.hypot(ax - bx, ay - by);
+    const per = la + lb + lc;
+    const ix = (la * ax + lb * bx + lc * qx) / per; // incentro: o "meio" visual do triângulo
+    const iy = (la * ay + lb * by + lc * qy) / per;
+    const inradius = Math.abs((bx - ax) * (qy - ay) - (qx - ax) * (by - ay)) / per;
+    const zoom = gsap.utils.clamp(0.5, 1.4, (1.6 * inradius) / (CUP * vh * s));
+    const dx = ix - fx;
+    const dy = iy - fy;
+
+    // e(g): quanto a câmera já recuou quando a janela está em g. É o mínimo para o vídeo
+    // sempre cobrir a parte visível do triângulo (sem bordas pretas), somado a um recuo suave.
+    const box = (e) => {
+      const z = zoom + (1 - zoom) * e;
+      const cx = fx + dx * (1 - e);
+      const cy = fy + dy * (1 - e);
+      return [cx - z * fx, cy - z * fy, cx + z * (W - fx), cy + z * (H - fy)];
+    };
+    const curve = new Float32Array(101);
+    let need = 0;
+    for (let i = 0; i <= 100; i++) {
+      const v = T0.map((a, k) => a + (T1[k] - a) * (i / 100));
+      const l = Math.max(0, Math.min(v[0], v[2], v[4]));
+      const t = Math.max(0, Math.min(v[1], v[3], v[5]));
+      const r = Math.min(W, Math.max(v[0], v[2], v[4]));
+      const b = Math.min(H, Math.max(v[1], v[3], v[5]));
+      for (;;) {
+        const [bl, bt, br, bb] = box(need); // margem de 3px cobre a interpolação entre as amostras
+        if (need >= 1 || (bl <= l - 3 && bt <= t - 3 && br >= r + 3 && bb >= b + 3)) break;
+        need = Math.min(1, need + 0.01);
+      }
+      const k = Math.min(1, i / 60);
+      curve[i] = Math.max(need, k * k * (3 - 2 * k));
+    }
+    cam = { dx, dy, zoom, curve };
+    video.style.transformOrigin = `${fx.toFixed(1)}px ${fy.toFixed(1)}px`;
+    applyGrow();
+  }
+
+  function applyGrow() {
+    if (!T0) return;
+    const g = grow.g;
+    const v = T0.map((a, i) => a + (T1[i] - a) * g);
+    const k = g * 100;
+    const i = Math.min(99, Math.floor(k));
+    const e = g >= 1 ? 1 : cam.curve[i] + (cam.curve[i + 1] - cam.curve[i]) * (k - i);
+    video.style.transform = e >= 0.985 ? ''
+      : `translate3d(${(cam.dx * (1 - e)).toFixed(1)}px, ${(cam.dy * (1 - e)).toFixed(1)}px, 0) scale(${(cam.zoom + (1 - cam.zoom) * e).toFixed(4)})`;
+    // as letras empurradas somem enquanto saem da tela
+    const fade = (1 - gsap.utils.clamp(0, 1, (g - 0.3) / 0.3)).toFixed(3);
+    letterL.style.opacity = fade;
+    for (const el of lettersR) el.style.opacity = fade;
+    // a janela cobre a tela: sem clip-path, o vídeo volta a ser uma camada simples
+    media.style.clipPath = g >= 1 ? 'none'
+      : `polygon(${v[0].toFixed(1)}px ${v[1].toFixed(1)}px, ${v[2].toFixed(1)}px ${v[3].toFixed(1)}px, ${v[4].toFixed(1)}px ${v[5].toFixed(1)}px)`;
+    // o triângulo empurra as letras: L acompanha a borda esquerda, U e D acompanham a ponta
+    letterL.style.transform = `translate3d(${(v[0] - T0[0]).toFixed(1)}px, 0, 0)`;
+    const dx = `translate3d(${(v[2] - T0[2]).toFixed(1)}px, 0, 0)`;
+    for (const el of lettersR) el.style.transform = dx;
+    slot.style.visibility = g > 0.08 ? 'hidden' : '';
+    if (g > 0.01) start();
+    if (g >= 1 && !revealed) reveal();
+    else if (g < 0.97 && revealed) unreveal();
+  }
+
+  /* ---- reprodução: só toca com a seção na tela ---- */
+  let started = false;
+  let userPaused = false;
+  let inView = false;
+  let loaded = false;
+
+  function load() {
+    if (loaded) return;
+    loaded = true;
+    video.preload = 'auto';
+    video.load();
+  }
+  function start() {
+    if (started || !autoplay) return;
+    started = true;
+    sync();
+  }
+  function sync() {
+    load();
+    if (started && inView && !userPaused) video.play().catch(() => {});
+    else video.pause();
+  }
+
+  const isPaused = () => video.paused || video.ended;
+  function updateUI() {
+    section.classList.toggle('is-paused', isPaused());
+    section.classList.toggle('is-sound', !video.muted);
+    toggleBtn.setAttribute('aria-label', isPaused() ? 'Reproduzir o vídeo' : 'Pausar o vídeo');
+    soundBtn.setAttribute('aria-pressed', String(!video.muted));
+    soundLabel.textContent = video.muted ? 'Aumenta o som' : 'Som ligado';
+    // escuta o áudio só com som ligado, tocando e na tela
+    const run = !isPaused() && inView && !video.muted && !!audio;
+    if (run && !listening) startListening();
+    else if (!run && listening) stopListening();
+    listening = run;
+    updateProgress();
+  }
+  ['play', 'playing', 'pause', 'ended', 'volumechange'].forEach((type) => video.addEventListener(type, updateUI));
+
+  // Desempenho: nada sobre o vídeo se mexe continuamente. Qualquer animação contínua por cima
+  // (barra, equalizador, brilho) obrigava o navegador a montar a página 60x por segundo em vez
+  // de só repassar os quadros do vídeo (medido: +7 a +17 pontos de CPU cada, e até ~10% de GPU).
+
+  // Barra de progresso: acompanha o vídeo em passos (timeupdate, ~4x por segundo).
+  function updateProgress() {
+    const d = video.duration;
+    if (d && Number.isFinite(d)) progress.style.transform = `scaleX(${(video.currentTime / d).toFixed(4)})`;
+  }
+  ['timeupdate', 'seeked', 'loadedmetadata'].forEach((type) => video.addEventListener(type, updateProgress));
+
+  /* ---- som: o brilho verde explode nos picos da torcida (áudio real, via Web Audio) ---- */
+  // No iOS, rotear o vídeo pelo Web Audio pode silenciá-lo; lá o som toca normalmente, sem o brilho.
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let audio = null;
+
+  function initAudio() {
+    if (audio !== null) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (isIOS || !Ctx || reduceMotion) {
+      audio = false;
+      return;
+    }
+    try {
+      const ctx = new Ctx();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048; // janela de ~43 ms
+      ctx.createMediaElementSource(video).connect(analyser);
+      analyser.connect(ctx.destination);
+      ctx.resume();
+      audio = { ctx, analyser, data: new Float32Array(analyser.fftSize), fast: null, slow: 0, last: 0 };
+    } catch (err) {
+      audio = false;
+    }
+  }
+
+  // Lê o volume 8x por segundo (só JS, sem tocar no DOM): um nível rápido (~0,3 s) comparado
+  // à média lenta (~4 s). Quando a torcida explode 2,5 dB acima da média, dispara um clarão
+  // curto (no máx. 1 a cada 3 s; ~4 por volta do vídeo, incluindo a taça subindo).
+  // Entre os picos nada anima: o custo fica igual ao do vídeo sem som.
+  let listenTimer = 0;
+  let listening = false;
+  function listen() {
+    const { analyser, data } = audio;
+    analyser.getFloatTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    const db = 10 * Math.log10(sum / data.length + 1e-10); // volume RMS, em dBFS
+    if (audio.fast === null) {
+      audio.fast = audio.slow = db;
+      return;
+    }
+    audio.fast += (db - audio.fast) * 0.35;
+    audio.slow += (db - audio.slow) * 0.03;
+    const now = performance.now();
+    const over = audio.fast - audio.slow;
+    if (over > 2.5 && now - audio.last > 3000) {
+      audio.last = now;
+      pulse.animate(
+        [{ opacity: 0 }, { opacity: Math.min(0.9, 0.55 + (over - 2.5) * 0.1), offset: 0.2 }, { opacity: 0 }],
+        { duration: 1100, easing: 'ease-out' },
+      );
+    }
+  }
+  function startListening() {
+    listenTimer = setInterval(listen, 125);
+  }
+  function stopListening() {
+    clearInterval(listenTimer);
+  }
+
+  function soundOn(restart) {
+    initAudio();
+    if (audio) audio.ctx.resume();
+    video.muted = false;
+    started = true;
+    userPaused = false;
+    if (restart) video.currentTime = 0;
+    sync();
+  }
+
+  let heardFromStart = false;
+  soundBtn.addEventListener('click', () => {
+    if (video.muted) {
+      // na primeira vez, recomeça para ouvir a taça subir desde o início
+      soundOn(!heardFromStart);
+      heardFromStart = true;
+    } else {
+      video.muted = true;
+    }
+  });
+  toggleBtn.addEventListener('click', () => {
+    started = true;
+    userPaused = !isPaused();
+    sync();
+  });
+
+  /* ---- revelação: flash verde e "É BI!" (tempo, não scroll) ---- */
+  let revealed = false;
+  const slam = gsap.timeline({ paused: true })
+    .fromTo('.reel__final', { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 0)
+    .from('.reel__bi', { scale: 1.7, autoAlpha: 0, duration: 0.55, ease: 'power4.out' }, 0.04)
+    .from(['.reel__tag', '.reel__sub', '.reel__controls'], { y: 26, autoAlpha: 0, duration: 0.6, stagger: 0.08, ease: 'power3.out' }, 0.3)
+    .to('.reel__progress', { autoAlpha: 1, duration: 0.4 }, 0.3);
+  if (!reduceMotion) {
+    slam.fromTo('.reel__flash', { opacity: 0 }, { opacity: 0.5, duration: 0.07, ease: 'none' }, 0)
+      .to('.reel__flash', { opacity: 0, duration: 0.65, ease: 'power2.out' }, 0.07);
+  }
+  function reveal() {
+    revealed = true;
+    slam.play();
+  }
+  function unreveal() {
+    revealed = false;
+    slam.reverse();
+  }
+
+  /* ---- linha do tempo guiada pelo scroll ---- */
+  const GROW_AT = 0.1;
+  const GROW_LEN = 0.45;
+  const tl = gsap.timeline({
+    defaults: { ease: 'none' },
+    scrollTrigger: {
+      trigger: pin,
+      start: 'top top',
+      end: '+=230%',
+      pin: true,
+      scrub: 0.6,
+      anticipatePin: 1,
+    },
+  });
+  tl.to(['.reel__eyebrow', '.reel__lead', '.reel__hint'], { autoAlpha: 0, y: -26, duration: 0.14 }, GROW_AT)
+    .to(mark, { opacity: 0, duration: 0.08 }, GROW_AT + 0.02)
+    .to(grow, { g: 1, duration: GROW_LEN, ease: 'power3.in', onUpdate: applyGrow }, GROW_AT)
+    .to('.reel__shade', { autoAlpha: 1, duration: 0.12 }, GROW_AT + GROW_LEN - 0.04)
+    .to({}, { duration: 1 - GROW_AT - GROW_LEN }, GROW_AT + GROW_LEN);
+
+  // O símbolo é um botão de play: toca com som e rola até o vídeo abrir por completo.
+  slot.addEventListener('click', () => {
+    soundOn(true);
+    heardFromStart = true;
+    const st = tl.scrollTrigger;
+    scrollToY(st.start + (st.end - st.start) * ((GROW_AT + GROW_LEN) / tl.duration()) + 4);
+  });
+
+  /* ---- gatilhos de visibilidade e carregamento ---- */
+  // pré-carrega um pouco antes de chegar (exceto com economia de dados: aí só baixa no play)
+  ScrollTrigger.create({
+    trigger: section,
+    start: 'top bottom+=120%',
+    onEnter: () => {
+      if (navigator.connection?.saveData !== true) load();
+    },
+  });
+  ScrollTrigger.create({
+    trigger: section,
+    start: 'top bottom',
+    end: 'bottom top',
+    onToggle: (self) => {
+      inView = self.isActive;
+      section.classList.toggle('is-inview', inView);
+      root.classList.toggle('is-reel', inView); // pausa o grão de filme sobre o vídeo (ver CSS)
+      sync();
+      updateUI();
+    },
+  });
+  ScrollTrigger.addEventListener('refresh', measure);
+  document.fonts?.ready.then(measure);
+  measure();
+  updateUI();
 }
 
 /* ---------------------------------------------------------------- navegação */
